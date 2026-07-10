@@ -1,0 +1,9 @@
+[submodule "src/Libraries/Mpesa.Gate"]
+	path = src/Libraries/Mpesa.Gate
+	url = git@github.com:liveBuildKenya/Mpesa.Gate.git
+[submodule "src/Plugins/Nop.Plugins.Payments.Mpesa"]
+	path = src/Plugins/Nop.Plugins.Payments.Mpesa
+	url = git@github.com:liveBuildKenya/Nop.Plugin.Payments.Mpesa.git
+[submodule "src/Plugins/Nop.Plugins.Misc.EliteAuctions"]
+	path = src/Plugins/Nop.Plugins.Misc.EliteAuctions
+	url = git@github.com:liveBuildKenya/Nop.Plugins.Misc.EliteAuctions.git
