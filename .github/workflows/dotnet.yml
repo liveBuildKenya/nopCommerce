@@ -14,17 +14,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout parent repo with submodules
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x      
-      - name: Restore dependencies
-        run: dotnet restore src
-      - name: Build
-        run: dotnet build --no-restore --configuration Release src
-      - name: Test
-        run: dotnet test --no-build --configuration Release --verbisity normal src
+    - name: Checkout parent repo with submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        token: ${{ secrets.CI_TOKEN }}
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x      
+    - name: Restore dependencies
+      run: dotnet restore src
+    - name: Build
+      run: dotnet build --no-restore --configuration Release src
+    - name: Test
+      run: dotnet test --no-build --configuration Release --verbisity normal src
