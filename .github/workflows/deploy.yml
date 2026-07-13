@@ -1,0 +1,42 @@
+name: Deploy Artifact to Compute Engine
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ "release" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app
+          path: out
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{secrets.GCP_WIF_PROVIDER}}
+          service_account: ${{secrets.GCP_SERVICE_ACCOUNT}}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{secrets.GCP_PROJECT_ID}}
+
+      - name: Verify Authentication
+        run: gcloud auth list
+
+      - name: Copy file to compute engine
+        run: |
+          gcloud compute scp --recurse out/* ${{secrets.GCE_INSTANCE_NAME}}:${{secrets.GCE_TARGET_PATH}} --zone=${{secrets.GCE_ZONE}}
+
+      - name: Restart Service
+        run: |
+          gcloud compute ssh ${{secrets.GCE_INSTANCE_NAME}} --zone=${{secrets.GCE_ZONE}} --command="sudo systemctl restart nopCommerce"
