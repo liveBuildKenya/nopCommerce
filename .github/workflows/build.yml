@@ -3,15 +3,24 @@ name: Build Artifact
 on:
   repository_dispatch:
     types: [modulel-updated]
-  workflow_dispatch:   
+
+  workflow_dispatch:
+
   push:
-    branches: [ "develop" ]
+    branches: 
+      - develop
+      - release
+
   pull_request:
-    branches: [ "develop" ]
+    branches:
+      - develop
+      - release      
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
+    
     steps:
     - name: Checkout parent repo with submodules
       uses: actions/checkout@v4
