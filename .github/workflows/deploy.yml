@@ -17,14 +17,34 @@ jobs:
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'push' &&
       github.event.workflow_run.head_branch == 'release'
+
     runs-on: ubuntu-latest
+    
     steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish
+        run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o out
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: out
+
       - name: Download Artifact
         uses: actions/download-artifact@v4
         with:
           name: app
           path: out
-          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
