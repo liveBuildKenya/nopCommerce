@@ -40,12 +40,3 @@ jobs:
 
     - name: Test
       run: dotnet test --no-build --configuration Release --verbosity normal src
-
-    - name: Publish
-      run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o out
-
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app
-        path: out
