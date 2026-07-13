@@ -31,6 +31,13 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Debug GitHub OIDC Claims
+        run: |
+          echo "Sub: ${{ github.sub }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Event: ${{ github.event.workflow_run.event }}"
+          echo "Branch: ${{ github.event.workflow_run.head_branch }}"
+
       - name: Publish
         run: dotnet publish src/Presentation/Nop.Web/Nop.Web.csproj -c Release -o out
 
