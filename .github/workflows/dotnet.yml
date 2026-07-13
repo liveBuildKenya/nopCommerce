@@ -24,4 +24,4 @@ jobs:
     - name: Build
       run: dotnet build --no-restore --configuration Release src
     - name: Test
-      run: dotnet test --no-build --configuration Release --verbisity normal src
+      run: dotnet test --no-build --configuration Release --verbosity normal src
