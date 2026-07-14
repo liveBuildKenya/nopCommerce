@@ -79,6 +79,9 @@ jobs:
       - name: Verify Authentication
         run: gcloud auth list
 
+      - name: List Configuration
+        run: gcloud config list
+
       - name: Copy file to compute engine
         run: |
           gcloud compute scp --recurse nopCommerce ${{ secrets.GCE_INSTANCE_NAME }}: --zone=${{ secrets.GCE_ZONE }}
