@@ -89,6 +89,14 @@ jobs:
         run: |
           gcloud compute scp --recurse nopCommerce ${{ secrets.GCE_INSTANCE_NAME }}: --zone=${{ secrets.GCE_ZONE }}
 
+      - name: Sync files to deployment folder
+        run: |
+          gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_ZONE }} --command="sudo rsync -av --delete --exclude '${{ secrets.RSYNC_EXCLUDE }}' ${{ secrets.RSYNC_SOURCE }} ${{ secrets.RSYNC_TARGET }}"          
+
       - name: Restart Service
         run: |
           gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_ZONE }} --command="sudo systemctl restart nopCommerce"
+
+      - name: Check Service Status
+        run: |
+          gcloud compute ssh ${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_ZONE }} --command="sudo systemctl status nopCommerce"          
