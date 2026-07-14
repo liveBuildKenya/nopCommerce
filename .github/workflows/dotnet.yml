@@ -70,17 +70,11 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-          export_environment_variables: false
-          create_credentials_file: true
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Activate service account credentials
-        run: |
-          gcloud auth activate-service-account ${{ secrets.GCP_SERVICE_ACCOUNT }} --key-file="$GOOGLE_APPLICATION_CREDENTIALS"
           
       - name: Verify Authentication
         run: |
@@ -92,7 +86,7 @@ jobs:
 
       - name: Copy file to compute engine
         run: |
-          gcloud compute scp --recurse nopCommerce ${{ secrets.GCE_INSTANCE_NAME }}: --zone=${{ secrets.GCE_ZONE }}
+          gcloud compute scp --project=${{ secrets.GCP_PROJECT_ID }}  --recurse nopCommerce ${{ secrets.GCE_INSTANCE_NAME }}: --zone=${{ secrets.GCE_ZONE }}
 
       - name: Restart Service
         run: |
