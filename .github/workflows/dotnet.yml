@@ -70,6 +70,7 @@ jobs:
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
@@ -86,7 +87,7 @@ jobs:
 
       - name: Copy file to compute engine
         run: |
-          gcloud compute scp --project=${{ secrets.GCP_PROJECT_ID }}  --recurse nopCommerce ${{ secrets.GCE_INSTANCE_NAME }}: --zone=${{ secrets.GCE_ZONE }}
+          gcloud compute scp --recurse nopCommerce ${{ secrets.GCE_INSTANCE_NAME }}: --zone=${{ secrets.GCE_ZONE }}
 
       - name: Restart Service
         run: |
