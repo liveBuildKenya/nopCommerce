@@ -1905,7 +1905,9 @@ public partial class InstallationService
             GuestReturnRequestsAllowed = false,
             ReturnReasonsEnabled = true,
             ReturnActionsEnabled = true,
-            WithdrawalLinkDaysValid = 7
+            WithdrawalLinkDaysValid = 7,
+            ReturnRequestsForCompletedOrdersOnly = true,
+            DownloadableProductsReturnRequestsAllowed = false,
         });
 
         await SaveSettingAsync(dictionary, new SecuritySettings
@@ -2026,7 +2028,8 @@ public partial class InstallationService
             NotifyStoreOwnerAboutVendorInformationChange = true,
             MaximumProductNumber = 3000,
             AllowVendorsToImportProducts = true,
-            MaximumProductPicturesNumber = 5
+            MaximumProductPicturesNumber = 5,
+            AllowVendorsToUpload3dObjects = false
         });
 
         var eaGeneral = await Table<EmailAccount>().FirstOrDefaultAsync() ?? throw new Exception("Default email account cannot be loaded");
