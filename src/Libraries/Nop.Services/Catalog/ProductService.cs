@@ -1,6 +1,7 @@
 ﻿using System.Data.SqlTypes;
 using Nop.Core;
 using Nop.Core.Caching;
+using Nop.Core.Domain.ArtificialIntelligence;
 using Nop.Core.Domain.Catalog;
 using Nop.Core.Domain.Customers;
 using Nop.Core.Domain.Discounts;
@@ -10,7 +11,9 @@ using Nop.Core.Domain.Shipping;
 using Nop.Core.Domain.Stores;
 using Nop.Core.Infrastructure;
 using Nop.Data;
+using Nop.Services.ArtificialIntelligence;
 using Nop.Services.Customers;
+using Nop.Services.Directory;
 using Nop.Services.Localization;
 using Nop.Services.Messages;
 using Nop.Services.Security;
@@ -27,12 +30,15 @@ public partial class ProductService : IProductService
 {
     #region Fields
 
+    protected readonly ArtificialIntelligenceSettings _artificialIntelligenceSettings;
     protected readonly CatalogSettings _catalogSettings;
     protected readonly IAclService _aclService;
+    protected readonly IAiRecommendationPluginManager _aiRecommendationPluginManager;
     protected readonly ICustomerService _customerService;
     protected readonly IDateRangeService _dateRangeService;
     protected readonly ILanguageService _languageService;
     protected readonly ILocalizationService _localizationService;
+    protected readonly IMeasureService _measureService;
     protected readonly IProductAttributeParser _productAttributeParser;
     protected readonly IProductAttributeService _productAttributeService;
     protected readonly IRepository<Category> _categoryRepository;
@@ -68,12 +74,15 @@ public partial class ProductService : IProductService
 
     #region Ctor
 
-    public ProductService(CatalogSettings catalogSettings,
+    public ProductService(ArtificialIntelligenceSettings artificialIntelligenceSettings,
+        CatalogSettings catalogSettings,
         IAclService aclService,
+        IAiRecommendationPluginManager aiRecommendationPluginManager,
         ICustomerService customerService,
         IDateRangeService dateRangeService,
         ILanguageService languageService,
         ILocalizationService localizationService,
+        IMeasureService measureService,
         IProductAttributeParser productAttributeParser,
         IProductAttributeService productAttributeService,
         IRepository<Category> categoryRepository,
@@ -104,12 +113,15 @@ public partial class ProductService : IProductService
         IWorkContext workContext,
         LocalizationSettings localizationSettings)
     {
+        _artificialIntelligenceSettings = artificialIntelligenceSettings;
         _catalogSettings = catalogSettings;
         _aclService = aclService;
+        _aiRecommendationPluginManager = aiRecommendationPluginManager;
         _customerService = customerService;
         _dateRangeService = dateRangeService;
         _languageService = languageService;
         _localizationService = localizationService;
+        _measureService = measureService;
         _productAttributeParser = productAttributeParser;
         _productAttributeService = productAttributeService;
         _categoryRepository = categoryRepository;
@@ -770,7 +782,7 @@ public partial class ProductService : IProductService
             .PrepareKeyForDefaultCache(NopCatalogDefaults.CategoryProductsNumberCacheKey, customerRoleIds, storeId, categoryIds);
 
         //only distinct products
-        return await _staticCacheManager.GetAsync(cacheKey, () => query.Select(p => p.Id).CountAsync());
+        return await _staticCacheManager.GetAsync(cacheKey, () => query.Select(p => p.Id).Distinct().CountAsync());
     }
 
     /// <summary>
@@ -836,6 +848,9 @@ public partial class ProductService : IProductService
         if (pageSize == int.MaxValue)
             pageSize = int.MaxValue - 1;
 
+        //results of the search provider run
+        List<int> providerResults = null;
+
         var productsQuery = _productRepository.Table;
 
         if (!showHidden)
@@ -878,31 +893,64 @@ public partial class ProductService : IProductService
                   (priceMax == null || p.Price <= priceMax)
             select p;
 
-        var activeSearchProvider = await _searchPluginManager.LoadPrimaryPluginAsync(customer, storeId);
-        var providerResults = new List<int>();
+        //try to use AI-powered recommendation provider to search products
+        if (!showHidden && await _aiRecommendationPluginManager.LoadPrimaryPluginAsync(customer, storeId) is IAiRecommendationPlugin aiRecommendationPlugin)
+        {
+            try
+            {
+                var (results, totalItems) = await aiRecommendationPlugin
+                    .SearchProductsAsync(keywords, categoryIds, manufacturerIds, productTagId, filteredSpecOptions, pageIndex, pageSize);
+                if (!results.Any())
+                    throw new Exception("AI-powered recommendation provider. No products found by the specified parameters");
+
+                var sortedResult = await productsQuery
+                    .OrderBy(orderBy, _localizedPropertyRepository, languageId > 0 ? languageId : (await _workContext.GetWorkingLanguageAsync()).Id, results)
+                    .ToListAsync();
+
+                return new PagedList<Product>(sortedResult, pageIndex, pageSize, totalItems);
+            }
+            catch
+            {
+                if (!_artificialIntelligenceSettings.UseStandardSearchWhenNoResults)
+                {
+                    return await productsQuery
+                        .OrderBy(orderBy, _localizedPropertyRepository, languageId > 0 ? languageId : (await _workContext.GetWorkingLanguageAsync()).Id)
+                        .ToPagedListAsync(pageIndex, pageSize);
+                }
+            }
+        }
 
         if (!string.IsNullOrEmpty(keywords))
         {
             var langs = await _languageService.GetAllLanguagesAsync(showHidden: true);
 
-            //Set a flag which will to points need to search in localized properties. If showHidden doesn't set to true should be at least two published languages.
+            //set a flag which will to points need to search in localized properties.
+            //if showHidden doesn't set to true should be at least two published languages.
             var searchLocalizedValue = languageId > 0 && langs.Count >= 2 && (showHidden || langs.Count(l => l.Published) >= 2);
-            var productsByKeywords = new List<int>().AsQueryable();
-            var runStandardSearch = activeSearchProvider is null || showHidden;
 
-            try
+            var productsByKeywords = new List<int>().AsQueryable();
+            var runStandardSearch = true;
+
+            //try to use search provider for searching products by keywords
+            if (!showHidden && await _searchPluginManager.LoadPrimaryPluginAsync(customer, storeId) is ISearchProvider searchProvider)
             {
-                if (!runStandardSearch)
+                try
                 {
-                    providerResults = await activeSearchProvider.SearchProductsAsync(keywords, searchLocalizedValue);
+                    providerResults = await searchProvider.SearchProductsAsync(keywords, searchLocalizedValue);
+                    if (providerResults?.Any() != true)
+                        throw new Exception("Search provider. No products found by the specified keywords");
+
                     productsByKeywords = providerResults.AsQueryable();
+                    runStandardSearch = false;
+                }
+                catch
+                {
+                    runStandardSearch = _catalogSettings.UseStandardSearchWhenNoResults;
                 }
             }
-            catch
-            {
-                runStandardSearch = _catalogSettings.UseStandardSearchWhenSearchProviderThrowsException;
-            }
 
+            //use standard search if search provider is not active or failed
+            //also use standard search if showHidden is set to true, because in this case we should return all products (including hidden) and not only products that match the keywords
             if (runStandardSearch)
             {
                 productsByKeywords =
@@ -1047,10 +1095,9 @@ public partial class ProductService : IProductService
             {
                 var productCategoryQuery =
                     from pc in _productCategoryRepository.Table
-                    join c in _categoryRepository.Table on pc.CategoryId equals c.Id
                     where (!excludeFeaturedProducts || !pc.IsFeaturedProduct) &&
                           categoryIds.Contains(pc.CategoryId)
-                    group c.DisplayOrder by pc.ProductId into gr
+                    group pc.DisplayOrder by pc.ProductId into gr
                     select new
                     {
                         ProductId = gr.Key,
@@ -1123,19 +1170,9 @@ public partial class ProductService : IProductService
             }
         }
 
-        if (providerResults.Any() && orderBy == ProductSortingEnum.Position && !showHidden)
-        {
-            var sortedProducts = from p in productsQuery
-                                 join pr in providerResults.Select((id, ind) => new { ind, id }) on p.Id equals pr.id into orderSeq
-                                 from os in orderSeq.DefaultIfEmpty()
-                                 orderby os == null ? int.MaxValue : os.ind
-                                 select p;
-                                 
-
-            return await sortedProducts.ToPagedListAsync(pageIndex, pageSize);
-        }
-
-        return await productsQuery.OrderBy(_localizedPropertyRepository, await _workContext.GetWorkingLanguageAsync(), orderBy).ToPagedListAsync(pageIndex, pageSize);
+        return await productsQuery
+            .OrderBy(orderBy, _localizedPropertyRepository, languageId > 0 ? languageId : (await _workContext.GetWorkingLanguageAsync()).Id, providerResults)
+            .ToPagedListAsync(pageIndex, pageSize);
     }
 
     /// <summary>
@@ -1685,6 +1722,52 @@ public partial class ProductService : IProductService
             .ToListAsync();
 
         return queryFilter.Except(filter).ToArray();
+    }
+
+    /// <summary>
+    /// Get base price (PAngV)
+    /// </summary>
+    /// <param name="product">Product</param>
+    /// <param name="productPrice">Product price (in primary currency). Pass null if you want to use a default produce price</param>
+    /// <param name="totalWeight">Total weight of product (with attribute weight adjustment). Pass null if you want to use a default produce weight</param>
+    /// <returns>
+    /// A task that represents the asynchronous operation
+    /// The task result contains the base price
+    /// </returns>
+    public virtual async Task<decimal?> GetBaseProductPriceAsync(Product product, decimal? productPrice, decimal? totalWeight = null)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+
+        if (!product.BasepriceEnabled)
+            return null;
+
+        var productAmount = totalWeight.HasValue && totalWeight.Value > decimal.Zero ? totalWeight.Value : product.BasepriceAmount;
+
+        //amount in product cannot be 0
+        if (productAmount == 0)
+            return null;
+        
+        var referenceAmount = product.BasepriceBaseAmount;
+        var productUnit = await _measureService.GetMeasureWeightByIdAsync(product.BasepriceUnitId);
+
+        //measure weight cannot be loaded
+        if (productUnit == null)
+            return null;
+
+        var referenceUnit = await _measureService.GetMeasureWeightByIdAsync(product.BasepriceBaseUnitId);
+
+        //measure weight cannot be loaded
+        if (referenceUnit == null)
+            return null;
+
+        productPrice ??= product.Price;
+
+        var basePrice = productPrice.Value /
+                        //do not round. otherwise, it can cause issues
+                        await _measureService.ConvertWeightAsync(productAmount, productUnit, referenceUnit, false) *
+                        referenceAmount;
+        
+        return basePrice;
     }
 
     #endregion

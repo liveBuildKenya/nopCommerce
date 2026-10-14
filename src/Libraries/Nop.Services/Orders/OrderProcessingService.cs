@@ -1504,7 +1504,7 @@ public partial class OrderProcessingService : IOrderProcessingService
                 //shipping is not required
                 completed = true;
             else
-                //shipping is required
+            //shipping is required
             {
                 completed = _orderSettings.CompleteOrderWhenDelivered
                     ? order.ShippingStatus == ShippingStatus.Delivered
@@ -1634,8 +1634,10 @@ public partial class OrderProcessingService : IOrderProcessingService
                     await SendNotificationsAndSaveNotesAsync(order);
 
                     //reset checkout data
-                    await _customerService.ResetCheckoutDataAsync(placeOrderContainer.Customer,
+                    await _shoppingCartService.ResetCheckoutDataAsync(placeOrderContainer.Customer,
                         processPaymentRequest.StoreId, clearCouponCodes: true, clearCheckoutAttributes: true);
+                    await _shoppingCartService.SetShoppingCartVendorAsync(placeOrderContainer.Customer, null, processPaymentRequest.StoreId);
+
                     await _customerActivityService.InsertActivityAsync("PublicStore.PlaceOrder",
                         string.Format(await _localizationService.GetResourceAsync("ActivityLog.PublicStore.PlaceOrder"),
                             order.Id), order);
@@ -3161,7 +3163,7 @@ public partial class OrderProcessingService : IOrderProcessingService
             return false;
 
         //status should be complete
-        if (order.OrderStatus != OrderStatus.Complete)
+        if (_returnRequestSettings.ReturnRequestsForCompletedOrdersOnly && order.OrderStatus != OrderStatus.Complete)
             return false;
 
         //validate allowed number of days

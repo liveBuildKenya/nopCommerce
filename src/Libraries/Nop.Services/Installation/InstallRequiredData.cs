@@ -186,7 +186,7 @@ public partial class InstallationService
     protected virtual async Task ImportResourcesFromXmlAsync(Language language, StreamReader xmlStreamReader, bool updateExistingResources = true)
     {
         var parsedResources = loadLocaleResourcesFromStream();
-        
+
         if (!parsedResources.Any())
             return;
 
@@ -1325,7 +1325,7 @@ public partial class InstallationService
                 StoreId = s.StoreId
             };
             if (!dictionary.TryGetValue(resourceName, out var value))
-                //first setting
+            //first setting
             {
                 dictionary.Add(resourceName, new List<Setting>
                 {
@@ -1562,7 +1562,7 @@ public partial class InstallationService
             DisplayAllPicturesOnCatalogPages = false,
             ProductUrlStructureTypeId = (int)ProductUrlStructureType.Product,
             ActiveSearchProviderSystemName = string.Empty,
-            UseStandardSearchWhenSearchProviderThrowsException = true,
+            UseStandardSearchWhenNoResults = true,
             ShowSearchTermHistory = true,
             NumberOfSearchTermHistoryItems = 10
         });
@@ -1583,7 +1583,9 @@ public partial class InstallationService
             MetaKeywordsQuery = ArtificialIntelligenceDefaults.MetaKeywordsQuery,
             AllowMetaDescriptionGeneration = true,
             MetaDescriptionQuery = ArtificialIntelligenceDefaults.MetaDescriptionQuery,
-            LogRequests = false
+            LogRequests = false,
+            ActiveAIRecommendationProviderSystemName = "AIRecommendation.GoogleAI",
+            UseStandardSearchWhenNoResults = true
         });
 
         await SaveSettingAsync(dictionary, new LocalizationSettings
@@ -1699,6 +1701,7 @@ public partial class InstallationService
             LoginByPhoneEnabled = false,
             OtpTimeLife = 30,
             OtpCountAttemptsToSendCode = 3,
+            OtpFailedAllowedAttempts = 3,
             OtpTimeToRepeat = 15,
             OtpLength = 6
         });
@@ -1849,7 +1852,9 @@ public partial class InstallationService
             RoundPricesDuringCalculation = true,
             GroupTierPricesForDistinctShoppingCartItems = false,
             AllowCartItemEditing = true,
-            RenderAssociatedAttributeValueQuantity = true
+            RenderAssociatedAttributeValueQuantity = true,
+            VendorEnabled = false,
+            VendorRequired = false,
         });
 
         await SaveSettingAsync(dictionary, new OrderSettings
@@ -1905,7 +1910,9 @@ public partial class InstallationService
             GuestReturnRequestsAllowed = false,
             ReturnReasonsEnabled = true,
             ReturnActionsEnabled = true,
-            WithdrawalLinkDaysValid = 7
+            WithdrawalLinkDaysValid = 7,
+            ReturnRequestsForCompletedOrdersOnly = true,
+            DownloadableProductsReturnRequestsAllowed = false,
         });
 
         await SaveSettingAsync(dictionary, new SecuritySettings
@@ -1951,7 +1958,7 @@ public partial class InstallationService
 
         await SaveSettingAsync(dictionary, new PaymentSettings
         {
-            ActivePaymentMethodSystemNames = ["Payments.CheckMoneyOrder", "Payments.Manual"],
+            ActivePaymentMethodSystemNames = ["Payments.CheckMoneyOrder"],
             AllowRePostingPayments = true,
             BypassPaymentMethodSelectionIfOnlyOne = true,
             ShowPaymentMethodDescriptions = true,
@@ -2026,7 +2033,8 @@ public partial class InstallationService
             NotifyStoreOwnerAboutVendorInformationChange = true,
             MaximumProductNumber = 3000,
             AllowVendorsToImportProducts = true,
-            MaximumProductPicturesNumber = 5
+            MaximumProductPicturesNumber = 5,
+            AllowVendorsToUpload3dObjects = false
         });
 
         var eaGeneral = await Table<EmailAccount>().FirstOrDefaultAsync() ?? throw new Exception("Default email account cannot be loaded");

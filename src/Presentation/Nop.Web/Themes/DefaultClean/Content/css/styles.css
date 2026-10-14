@@ -536,7 +536,7 @@ label, label + * {
 }
 
 .cart .product-quantity div.up {
-  background: url('../images/vote-up.png') no-repeat 50% 50%;
+  background: url('../images/up.png') no-repeat 50% 50%;
   width: 50px;
   height: 25px;
   border: 0;
@@ -544,7 +544,7 @@ label, label + * {
 }
 
 .cart .product-quantity div.down {
-  background: url('../images/vote-down.png') no-repeat 50% 50%;
+  background: url('../images/down.png') no-repeat 50% 50%;
   width: 50px;
   height: 25px;
   border: 0;
@@ -4454,6 +4454,16 @@ label, label + * {
 .shopping-cart-page .common-buttons button:first-child:hover,
 .shopping-cart-page .common-buttons button:first-child:focus {
   background-color: var(--accent-blue-active-color);
+}
+
+.shopping-cart-page .sc-vendor {
+  margin-block: 15px;
+}
+
+.shopping-cart-page .sc-vendor-label {
+  margin-block-end: 5px;
+  font-size: 18px;
+  color: var(--dark-gray-color);
 }
 
 .checkout-attributes {

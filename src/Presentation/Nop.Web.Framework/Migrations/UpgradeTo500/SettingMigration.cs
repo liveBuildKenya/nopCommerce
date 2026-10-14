@@ -11,6 +11,7 @@ using Nop.Core.Domain.PriceLists;
 using Nop.Core.Domain.Reminders;
 using Nop.Core.Domain.Security;
 using Nop.Core.Domain.Shipping;
+using Nop.Core.Domain.Vendors;
 using Nop.Data;
 using Nop.Data.Migrations;
 using Nop.Web.Framework.Extensions;
@@ -96,6 +97,7 @@ public class SettingMigration : MigrationBase
         this.SetSettingIfNotExists<OtpSettings, bool>(settings => settings.LoginByPhoneEnabled, false);
         this.SetSettingIfNotExists<OtpSettings, int>(settings => settings.OtpTimeLife, 30);
         this.SetSettingIfNotExists<OtpSettings, int>(settings => settings.OtpCountAttemptsToSendCode, 3);
+        this.SetSettingIfNotExists<OtpSettings, int>(settings => settings.OtpFailedAllowedAttempts, 3);
         this.SetSettingIfNotExists<OtpSettings, int>(settings => settings.OtpTimeToRepeat, 15);
         this.SetSettingIfNotExists<OtpSettings, int>(settings => settings.OtpLength, 6);
         this.SetSettingIfNotExists<MessagesSettings, string>(settings => settings.ActiveSmsProviderSystemName, "");
@@ -106,6 +108,8 @@ public class SettingMigration : MigrationBase
         this.SetSettingIfNotExists<MediaSettings, bool>(settings => settings.Object3dAutoRotateEnabled, false);
         this.SetSettingIfNotExists<MediaSettings, bool>(settings => settings.Object3dLazyLoadingEnabled, true);
         this.SetSettingIfNotExists<MediaSettings, int>(settings => settings.Object3dUploadSizeLimit, 20);
+
+        this.SetSettingIfNotExists<VendorSettings, bool>(settings => settings.AllowVendorsToUpload3dObjects, false);
 
         //#8098
         this.SetSettingIfNotExists<CatalogSettings, PriceListStrategy>(settings => settings.PriceListStrategy, PriceListStrategy.MinimalPrice);
@@ -141,6 +145,22 @@ public class SettingMigration : MigrationBase
             $"{nameof(CustomerSettings)}.PhoneNumberValidationUseRegex",
             $"{nameof(CustomerSettings)}.PhoneNumberValidationRule"
         ]);
+
+        //#3456
+        this.SetSettingIfNotExists<ReturnRequestSettings, bool>(settings => settings.ReturnRequestsForCompletedOrdersOnly, true);
+
+        //#8229
+        this.SetSettingIfNotExists<ReturnRequestSettings, bool>(settings => settings.DownloadableProductsReturnRequestsAllowed, false);
+
+        //#56
+        this.SetSettingIfNotExists<ShoppingCartSettings, bool>(settings => settings.VendorRequired, false);
+        this.SetSettingIfNotExists<ShoppingCartSettings, bool>(settings => settings.VendorEnabled, false);
+
+        //#7734
+        this.SetSettingIfNotExists<CatalogSettings, bool>(settings => settings.UseStandardSearchWhenNoResults,
+            this.GetSettingByKey($"{nameof(CatalogSettings)}.UseStandardSearchWhenSearchProviderThrowsException", true));
+        this.SetSettingIfNotExists<ArtificialIntelligenceSettings, string>(settings => settings.ActiveAIRecommendationProviderSystemName, "");
+        this.SetSettingIfNotExists<ArtificialIntelligenceSettings, bool>(settings => settings.UseStandardSearchWhenNoResults, true);
     }
 
     public override void Down()
